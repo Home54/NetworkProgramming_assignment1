@@ -25,7 +25,7 @@ server: servermain.o calcLib.o
 
 
 calcLib.o: calcLib.c calcLib.h
-	gcc -Wall -fPIC -c calcLib.c
+	g++ -Wall -fPIC -c calcLib.c
 
 libcalc: calcLib.o
 	ar -rc libcalc.a -o calcLib.o
