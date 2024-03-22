@@ -5,8 +5,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/ioctl.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include  <signal.h>
 #include <errno.h>
 #include <calcLib.h>
@@ -21,9 +21,10 @@
 using namespace std;
 
 int main(int argc, char *argv[]){
-  int server_sockfd, client_sockfd;
+  int server_sockfd1, server_sockfd2 ,client_sockfd;
   int server_len, client_len;
-  struct sockaddr_in server_address;
+  struct sockaddr_in server_address1;
+  struct sockaddr_in6 server_address2;
   struct sockaddr_in client_address;
   struct timeval timeToWait;
   fd_set readfds, testfds;
@@ -33,19 +34,27 @@ int main(int argc, char *argv[]){
   memset(hash,-1,sizeof(hash));
 
   // Create the server side socket
-  server_sockfd = socket(AF_INET, SOCK_STREAM , 0);
-  //if(setsockopt(server_sockfd, SOL_SOCKET, SO_RCVTIMEO ,&timeToWait,sizeof(timeToWait))<0) perror("Fail to set the tcp.\n");
+  server_sockfd1 = socket(AF_INET, SOCK_STREAM , 0);
+  server_sockfd2 = socket(AF_INET6, SOCK_STREAM , IPPROTO_TCP);
   
-  server_address.sin_family = AF_INET;
-  server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-  server_address.sin_port = htons(8888);
-  server_len = sizeof(server_address);
-  bind(server_sockfd, (struct sockaddr * ) & server_address, server_len);
+  server_address1.sin_family = AF_INET;
+  server_address1.sin_addr.s_addr = htonl(INADDR_ANY);
+  server_address1.sin_port = htons(8888);
+  server_len = sizeof(server_address1);
+  bind(server_sockfd1, (struct sockaddr * ) & server_address1, server_len);
   
-  listen(server_sockfd, 5);// Set the maximum number of listening fds to 5
+  server_address2.sin6_family = AF_INET6;
+  inet_pton(AF_INET6, "::1", &server_address2.sin6_addr);
+  server_address2.sin6_port = htons(8889);
+  server_len = sizeof(server_address2);
+  bind(server_sockfd2, (struct sockaddr * ) & server_address2, server_len);
+  
+  listen(server_sockfd1, 5);// Set the maximum number of listening fds to 5
+  listen(server_sockfd2, 5);
   FD_ZERO( & readfds);// Put the fd of the socket to the fd_set
-  FD_SET(server_sockfd, & readfds);
-  fd_max=server_sockfd;
+  FD_SET(server_sockfd1, & readfds);
+  FD_SET(server_sockfd2, & readfds);
+  fd_max=server_sockfd2;
   
   while (1) {
     int fd;
@@ -62,11 +71,11 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 	//printf("wait for sec(s):%f\n",(WAIT_TIME_SEC-(int)(timeToWait.tv_sec))*1.0+(WAIT_TIME_USEC-(int)(timeToWait.tv_usec))/1000000.0);
-    for (fd = server_sockfd; fd <= fd_max; fd++) {
+    for (fd = server_sockfd1; fd <= fd_max; fd++) {
       if (FD_ISSET(fd, & testfds)) {// handle the changed socket -> eg. listen socket will not be selected until new connection comes either does client socket  
-        if (fd == server_sockfd) {
+        if (fd == server_sockfd1 || fd == server_sockfd2 ) {
           client_len = sizeof(client_address);
-          client_sockfd = accept(server_sockfd,(struct sockaddr * ) & client_address, (socklen_t*)&client_len);
+          client_sockfd = accept(fd,(struct sockaddr * ) & client_address, (socklen_t*)&client_len);
           // Add the client socket to the collection
           // the spcific number of the ESTABLSIHED socket is confined by parameter backlog
           fd_max++;
@@ -102,11 +111,7 @@ int main(int argc, char *argv[]){
         	// the program will be blocked in select until the new request come(backlog=1)
         	// then in the time of excuting a few linesten, the program calls accept reduce the backlog 
         }
-      }else if(FD_ISSET(fd, & readfds)!=0&&fd!=server_sockfd){//the unselected ones
-      		
-      		if(hash[fd]+1.0<=0.000001) {
-      			printf("fd:%d %lf.\n",fd,hash[fd]);
-      		}
+      }else if(FD_ISSET(fd, & readfds)!=0&&fd!=server_sockfd1&&fd!=server_sockfd2){//the unselected ones
       		hash[fd]+=((WAIT_TIME_SEC-(int)(timeToWait.tv_sec))*1.0+(WAIT_TIME_USEC-(int)(timeToWait.tv_usec))/1000000.0);//ignore the time spent on loop all the fd
       		if(hash[fd]>=WAIT_TIME_SEC*1.0+WAIT_TIME_USEC/1000000.0){
       			send(fd,"EEROR.\n",sizeof("EEROR."),0);
