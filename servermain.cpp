@@ -12,8 +12,9 @@
 #include <calcLib.h>
 #include <map>
 #define MAXSZ 1400
-#define WAIT_TIME_SEC 500
+#define WAIT_TIME_SEC 5
 #define WAIT_TIME_USEC 0
+#define MAX_CLIENT 1
 // Enable if you want debugging to be printed, see examble below.
 // Alternative, pass CFLAGS=-DDEBUG to make, make CFLAGS=-DDEBUG
 //#define DEBUG
@@ -65,7 +66,7 @@ int main(int argc, char *argv[]){
   FD_ZERO( & readfds);// Put the fd of the socket to the fd_set
   FD_SET(server_sockfd1, & readfds);
   FD_SET(server_sockfd2, & readfds);
-  fd_max=server_sockfd2;
+  fd_max=0;
   
   while (1) {
     int fd;
@@ -82,22 +83,24 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 	//printf("wait for sec(s):%f\n",(WAIT_TIME_SEC-(int)(timeToWait.tv_sec))*1.0+(WAIT_TIME_USEC-(int)(timeToWait.tv_usec))/1000000.0);
-    for (fd = server_sockfd1; fd <= fd_max; fd++) {
+    for (fd = server_sockfd1; fd <= server_sockfd2+MAX_CLIENT; fd++) {
       if (FD_ISSET(fd, & testfds)) {// handle the changed socket -> eg. listen socket will not be selected until new connection comes either does client socket  
         if (fd == server_sockfd1 || fd == server_sockfd2 ) {
         	client_len = sizeof(client_address);
           	client_sockfd = accept(fd,(struct sockaddr * ) & client_address, (socklen_t*)&client_len);
-        	if(fd_max-server_sockfd2-1>5){
-        		send(client_sockfd,"Disconnecting...(current client is 5).\n",sizeof("Disconnnecting...(current client is 5)."),0);
+        	if(fd_max+1>MAX_CLIENT){
+        		send(client_sockfd,"Disconnecting...(current client is MAX_CLIENT).\n",sizeof("Disconnnecting...(current client is MAX_CLIENT)."),0);
         		close(client_sockfd);
-        		printf("The serving client is up to 5\n");
+        		printf("The serving client is up to MAX_CLIENT\n");
         	}else{
           // Add the client socket to the collection
           // the spcific number of the ESTABLSIHED socket is confined by parameter backlog
           		fd_max++;
           		hash[fd]=0.0;
           		FD_SET(client_sockfd, & readfds);
+          		//do the question and push the answer to the hash for answer
           		send(client_sockfd,"Hello Client.\n",sizeof("Hello Client."),0);
+          		//end the job
           		printf("Adding the client socket to fd %d\n", client_sockfd);
           //set the timer for the each 
         	}
@@ -105,7 +108,7 @@ int main(int argc, char *argv[]){
         // If not, it means there is data request from the client socket
         else {
           	memset(msg,0,sizeof(msg));
-            int n=recv(fd,msg,MAXSZ,MSG_DONTWAIT);//in this case: the recv will not block -> only when message comes that select will continue  
+            int n=recv(fd,msg,MAXSZ,0);//in this case: the recv will not block -> only when message comes that select will continue  
 			
 			if(n<=0){
 				close(fd);// Remove closed fd (from the unmodified fd_set readfds)
@@ -115,6 +118,7 @@ int main(int argc, char *argv[]){
             	printf("Removing client on fd %d\n", fd);
 			}
             else{
+            	//based on the hash to check the answer
             	if(strcmp(msg,"Hello Client.\n")!=0){
             		send(fd,"WRONG ANSWER.\n\n",sizeof("WRONG ANSWER.\n"),0);
             		printf("The client on fd %d gets wrong answer:%s\n",fd,msg);
@@ -124,8 +128,8 @@ int main(int argc, char *argv[]){
         			printf("The client on fd %d gets correct.\n", fd); 
             	}
                 hash[fd]=0.0;//reset the timer
-                // a new question
-                send(client_sockfd,"Hello Client.\n",sizeof("Hello Client."),0);
+                // a new question the same as that wrote above
+                send(fd,"Hello Client.\n",sizeof("Hello Client."),0);
             }
         	//if remove the sleep function: that means it will not cause an exceeding error for the backlog
         	// one assumption:the function will reduce the backlog  
