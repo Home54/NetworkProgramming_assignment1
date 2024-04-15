@@ -176,7 +176,7 @@ int main(int argc, char *argv[]){
             	//based on the hash to check the answer
             	
                	const double precision = 0.001;
-            if(strcmp(msg,"OK")!=0){
+            if(strncmp(msg,"OK",2)==0){
             	hash[fd]=0.0;//reset the timer
                 // a new question the same as that wrote above
                	 memset(ques,0,sizeof(ques));
@@ -184,7 +184,7 @@ int main(int argc, char *argv[]){
                 	//send the questions to the client
                	 send(fd, ques , sizeof(ques), 0);
                	 continue;
-            }else{
+            }else if(ans[fd-server_sockfd2-1]==NULL){
             	send(fd,"Bye.",sizeof("Bye."),0);
             	fd_max--;
             	close(fd);
