@@ -11,7 +11,7 @@
 #include "time.h"
 #include <math.h>
 #define MAXSZ 1400
-#define WAIT_TIME_SEC 100
+#define WAIT_TIME_SEC 5
 #define WAIT_TIME_USEC 0
 #define MAX_CLIENT 1
 // Enable if you want debugging to be printed, see examble below.
@@ -172,22 +172,36 @@ int main(int argc, char *argv[]){
             		FD_CLR(fd, & readfds);
             		printf("Removing client on fd %d\n", fd);
 		}
-               else{
+            else{
             	//based on the hash to check the answer
+            	
                	const double precision = 0.001;
-			if( ans[fd-server_sockfd2-1] == NULL ){
-				printf("Client first request.\n");
-			}
-            		else if(fabs(atof(msg) - atof(ans[fd-server_sockfd2-1])) >= precision){
-            			send(fd,"WRONG ANSWER.\n\n",sizeof("WRONG ANSWER.\n"),0);
-            			printf("The client on fd %d gets wrong answer:%s\n",fd,msg);
-            			free(ans[fd-server_sockfd2-1]);
-            		}else{//do good
-        			send(fd,"You got a correct answer.\n\n",sizeof("You got a correct answer.\n"),0);
-        			printf("The client on fd %d gets correct.\n", fd);
-        			free(ans[fd-server_sockfd2-1]);
-            		}		
-                	hash[fd]=0.0;//reset the timer
+            if(strcmp(msg,"OK")!=0){
+            	hash[fd]=0.0;//reset the timer
+                // a new question the same as that wrote above
+               	 memset(ques,0,sizeof(ques));
+               	 genQues(&ques[0],ans,client_sockfd-server_sockfd2-1);
+                	//send the questions to the client
+               	 send(fd, ques , sizeof(ques), 0);
+               	 continue;
+            }else{
+            	send(fd,"Bye.",sizeof("Bye."),0);
+            	fd_max--;
+            	close(fd);
+            	FD_CLR(fd, & readfds);
+            	continue;
+            }
+            
+			if(fabs(atof(msg) - atof(ans[fd-server_sockfd2-1])) >= precision){
+            	send(fd,"WRONG ANSWER.\n\n",sizeof("WRONG ANSWER.\n"),0);
+            	printf("The client on fd %d gets wrong answer:%s\n",fd,msg);
+            	free(ans[fd-server_sockfd2-1]);
+            }else{//do good
+        		send(fd,"You got a correct answer.\n\n",sizeof("You got a correct answer.\n"),0);
+        		printf("The client on fd %d gets correct.\n", fd);
+        		free(ans[fd-server_sockfd2-1]);
+            }		
+                hash[fd]=0.0;//reset the timer
                 // a new question the same as that wrote above
                	 memset(ques,0,sizeof(ques));
                	 genQues(&ques[0],ans,client_sockfd-server_sockfd2-1);
