@@ -171,7 +171,8 @@ int main(int argc, char *argv[]){
 			hash[fd]=-1.0;
             		FD_CLR(fd, & readfds);
             		printf("Removing client on fd %d\n", fd);
-		}
+            		ans[fd-server_sockfd2-1]=NULL;
+			}
             else{
             	//based on the hash to check the answer
             	
@@ -182,8 +183,8 @@ int main(int argc, char *argv[]){
                	 memset(ques,0,sizeof(ques));
                	 genQues(&ques[0],ans,client_sockfd-server_sockfd2-1);
                 	//send the questions to the client
-               	 send(fd, ques , sizeof(ques), 0);
-               	 continue;
+               	send(fd, ques , sizeof(ques), 0);
+               	continue;
             }else if(ans[fd-server_sockfd2-1]==NULL){
             	send(fd,"Bye.",sizeof("Bye."),0);
             	fd_max--;
