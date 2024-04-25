@@ -11,9 +11,9 @@
 #include "time.h"
 #include <math.h>
 #define MAXSZ 1400
-#define WAIT_TIME_SEC 5
+#define WAIT_TIME_SEC 25
 #define WAIT_TIME_USEC 0
-#define MAX_CLIENT 1
+#define MAX_CLIENT 3
 // Enable if you want debugging to be printed, see examble below.
 // Alternative, pass CFLAGS=-DDEBUG to make, make CFLAGS=-DDEBUG
 //#define DEBUG
@@ -157,7 +157,9 @@ int main(int argc, char *argv[]){
                 fd_max++;
                 hash[fd] = 0.0;
                 FD_SET(client_sockfd, &readfds);  
-               send(client_sockfd, "Hello Client.\n" , sizeof("Hello Client.") , 0);
+               send(client_sockfd, "TEXT TCP 1.0.\n", sizeof("TEXT TCP 1.0.\n") , 0);
+               if(fd==server_sockfd1) printf("Recieve a new clinet on IPV4.\n");
+               if(fd==server_sockfd2) printf("Recieve a new clinet on IPV6.\n");
             }
         }
         // If not, it means there is data request from the client socket
@@ -168,10 +170,9 @@ int main(int argc, char *argv[]){
 		if(n<=0){
 			close(fd);// Remove closed fd (from the unmodified fd_set readfds)
 			fd_max--;
-			hash[fd]=-1.0;
-            		FD_CLR(fd, & readfds);
-            		printf("Removing client on fd %d\n", fd);
-            		ans[fd-server_sockfd2-1]=NULL;
+            FD_CLR(fd, & readfds);
+            printf("Removing client on fd %d\n", fd);
+            ans[fd-server_sockfd2-1]=NULL;
 			}
             else{
             	//based on the hash to check the answer
@@ -182,6 +183,7 @@ int main(int argc, char *argv[]){
                 // a new question the same as that wrote above
                	 memset(ques,0,sizeof(ques));
                	 genQues(&ques[0],ans,client_sockfd-server_sockfd2-1);
+               	 printf("qustion:%s																																																																																																																																																																																																																							",ques);
                 	//send the questions to the client
                	send(fd, ques , sizeof(ques), 0);
                	continue;
@@ -206,6 +208,7 @@ int main(int argc, char *argv[]){
                 // a new question the same as that wrote above
                	 memset(ques,0,sizeof(ques));
                	 genQues(&ques[0],ans,client_sockfd-server_sockfd2-1);
+               	 printf("qustion:%s",ques);
                 	//send the questions to the client
                	 send(fd, ques , sizeof(ques), 0);
             }
@@ -219,9 +222,10 @@ int main(int argc, char *argv[]){
       		hash[fd]+=((WAIT_TIME_SEC-(int)(timeToWait.tv_sec))*1.0+(WAIT_TIME_USEC-(int)(timeToWait.tv_usec))/1000000.0);//ignore the time spent on loop all the fd
       		if(hash[fd]>=WAIT_TIME_SEC*1.0+WAIT_TIME_USEC/1000000.0){
       			send(fd,"EEROR.\n",sizeof("EEROR."),0);
+      			hash[fd]=0;
       			fd_max--;
-      			hash[fd]=-1.0;
       			FD_CLR(fd, & readfds);
+      			ans[fd-server_sockfd2-1]=NULL;
       			close(fd);
       			printf("Client on fd:%d timeout.\n",fd);
       		}
@@ -229,10 +233,3 @@ int main(int argc, char *argv[]){
     }
   }
 }
-
-//generate the question:
-//void genQues(char ** resQus , char ** resAns ) //int * bufflen
-//char * qus ; send to the client
-//char * ans ; the accept answer
-//void genQues(&qus,&ans)
-
